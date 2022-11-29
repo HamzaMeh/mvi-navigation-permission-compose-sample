@@ -59,7 +59,7 @@ fun ContactItem(
                     NameInitials(initials = Utils.getNameInitials(contact.name,2))
 
                     Spacer(modifier = Modifier.size(10.dp))
-                    
+
                     Column(
                         modifier = Modifier.offset(y= (-3f).dp)
                     ) {
