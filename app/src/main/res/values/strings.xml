@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">ComposeContactsScreen</string>
+    <string name="settings">Setttings</string>
+    <string name="ok">Ok</string>
+    <string name="allow_permission">Allow Permissions</string>
+    <string name="permission_rationale">Permission is required to proceed further</string>
+    <string name="something_went_wrong">Something went wrong!</string>
+</resources>
