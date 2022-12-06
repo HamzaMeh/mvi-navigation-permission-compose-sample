@@ -1,13 +1,18 @@
 @file:OptIn(ExperimentalPermissionsApi::class)
 
-package com.archestro.composecontactsscreen.ui.screens.contacts
+package com.archestro.composecontactsscreen.ui.features.contacts
 
+import android.app.Application
 import android.database.Cursor
 import android.provider.ContactsContract
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.archestro.composecontactsscreen.ComposeApplication
 import com.archestro.composecontactsscreen.R
+import com.archestro.composecontactsscreen.base.BaseViewModel
+import com.archestro.composecontactsscreen.data.local.contact.ContactModel
+import com.archestro.composecontactsscreen.ui.features.contacts.contract.ContactContract
 import com.archestro.composecontactsscreen.utils.permissionhandler.PermissionHandler
+import com.archestro.composecontactsscreen.utils.permissionhandler.PermissionState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.MultiplePermissionsState
 import kotlinx.coroutines.async
@@ -16,66 +21,35 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 class ContactsViewModel  constructor(
-    private val permissionHandler: PermissionHandler
-    ): ViewModel() {
-
-    private val _state = MutableStateFlow(State())
-    val state: StateFlow<State> = _state
-
-    private val _effect = MutableSharedFlow<Effect>()
-    val effect: SharedFlow<Effect> = _effect
-
+    val permissionState: PermissionState,
+    val permissionHandler: PermissionHandler,
+    private val mApplication: Application,
+    ): BaseViewModel<ContactContract.Event,ContactContract.State,ContactContract.Effect>() {
 
     init {
-        permissionHandler
-            .state
-            .onEach { stateHandler ->
-                _state.update { it.copy(multiplePermissionsState = stateHandler.multiplePermissionsState) }
-            }
-            .catch { Timber.e(it) }
-            .launchIn(viewModelScope)
+        permissionState.initPermissionState(viewModelScope,permissionHandler)
     }
 
-    data class State(
-        val permissionRequestInFlight: Boolean = false,
-        val hasContactsPermission: Boolean = false,
-        val multiplePermissionsState: MultiplePermissionsState? = null,
-        val permissionAction: PermissionHandler.Action = PermissionHandler.Action.NO_ACTION
+    override fun setInitialState() = ContactContract.State(
+        contacts = emptyList(),
+        isLoading = false,
+        isCompleted = false,
+        isError = false,
     )
 
-    sealed class Event {
+    override fun handleEvents(event: ContactContract.Event) {
+        when(event){
+            is ContactContract.Event.Retry ->{}
+            is ContactContract.Event.ContactSelected ->{ ContactContract.Effect.Navigation.ContactSelected(event.contact.id)}
 
-        data class Error(val exception: Exception) : Event()
-
-        object PermissionRequired : Event()
-    }
-
-    sealed class Effect {
-
-        data class ShowMessage(val message: Int = R.string.something_went_wrong) : Effect()
-        data class NavigateTo(val route: String) : Effect()
-    }
-
-    fun onEvent(event: Event) {
-        when (event) {
-            is Event.Error -> onError()
-            Event.PermissionRequired -> onPermissionRequired()
         }
     }
 
-    private fun onError(){
+
+    fun fetchContacts() {
+        val contactsList = mutableListOf<ContactModel>()
         viewModelScope.launch {
-            _effect.emit(Effect.ShowMessage())
-        }
-    }
-
-    private fun onPermissionRequired(){
-        permissionHandler.onEvent(PermissionHandler.Event.PermissionRequired)
-    }
-
-
-    /*fun fetchContacts() {
-        viewModelScope.launch {
+            setState { copy(isLoading=true, isCompleted = false) }
             val contactsListAsync = async { getPhoneContacts() }
             val contactNumbersAsync = async { getContactNumbers() }
 
@@ -86,11 +60,13 @@ class ContactsViewModel  constructor(
                 contactNumbers[it.id]?.let { numbers ->
                     it.numbers = numbers
                     numbers.forEach { cell ->
-                        it.mobileNumber = cell
+                        it.number = cell
                     }
                 }
+                contactsList.add(it)
             }
-            //_contactsLiveData.postValue(contacts)
+            setState { copy(contacts = contactsList, isLoading=false, isCompleted=true) }
+            setEffect { ContactContract.Effect.DataWasLoaded }
         }
     }
 
@@ -149,11 +125,5 @@ class ContactsViewModel  constructor(
         }
         return contactsNumberMap
     }
-*/
-    data class ContactModel(
-        val id:String,
-        val name:String,
-        val number:String
-    )
 
 }
